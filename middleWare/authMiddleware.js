@@ -1,10 +1,10 @@
 const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 const userModel = require("../models/userModel");
-
+const reactCookie = require("react-cookies");
 const protectRoute = asyncHandler(async (req, res, next) => {
   try {
-    const token = await req.cookies.token;
+    const token = reactCookie.load("token");
 
     if (token) {
       const verified = jwt.verify(token, process.env.JWT_SECRET_KEY);

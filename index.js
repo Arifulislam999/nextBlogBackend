@@ -31,7 +31,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/user", authRouter);
-app.use("/api/user", blogRouter);
+app.use("/api/post", blogRouter);
 
 // Error Handler
 app.use(errorHandler);

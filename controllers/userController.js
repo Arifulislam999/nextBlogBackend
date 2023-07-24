@@ -2,10 +2,11 @@ const asyncHandler = require("express-async-handler");
 const userModel = require("../models/userModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
+// const crypto = require("crypto");
+
 const validateEmail = require("../utils/checkEmail");
-const tokenModel = require("../models/tokenModel");
-const sendEmail = require("../utils/sendEmail");
+
+const reactCookie = require("react-cookies");
 
 // Generate Web Token.
 const generateToken = (id) => {
@@ -46,14 +47,22 @@ class userController {
             const token = generateToken(_id);
 
             // Send HTTP-only cookie
-            res.cookie("token", token, {
-              // path: "/",
+            // res.cookie("token", token, {
+            //   // path: "/",
+            //   httpOnly: true,
+            //   maxAge: 86400000, // 1 day
+            //   sameSite: "none",
+            //   secure: false,
+            // });
+            reactCookie.save("token", token, {
+              path: "/api/user/loggedin",
+              expires: 86400000,
+              maxAge: 86400000,
+              // domain: "https://play.bukinoshita.io",
+              secure: true,
               httpOnly: true,
-              maxAge: 86400000, // 1 day
-              sameSite: "none",
-              secure: false,
             });
-            console.log(req.cookies.token);
+            // console.log(reactCookie.load("token"));
 
             res.status(201).json({
               _id,
@@ -124,12 +133,20 @@ class userController {
           const token = generateToken(_id);
 
           // Set HTTP-only cookie
-          res.cookie("token", token, {
-            path: "/",
+          // res.cookie("token", token, {
+          //   path: "/",
+          //   httpOnly: true,
+          //   expires: new Date(Date.now() + 1000 * 86400), // 1 day
+          //   sameSite: "none",
+          //   // secure: false,
+          // });
+          reactCookie.save("token", token, {
+            path: "/api/user/loggedin",
+            expires: 86400000,
+            maxAge: 86400000,
+            // domain: "https://play.bukinoshita.io",
+            secure: true,
             httpOnly: true,
-            expires: new Date(Date.now() + 1000 * 86400), // 1 day
-            sameSite: "none",
-            // secure: false,
           });
           res.status(200).json({
             _id,
@@ -166,7 +183,11 @@ class userController {
       secure: true,
     });
 
-    return res.status(200).json({ message: "successfully Logged Out." });
+    reactCookie.remove("token", { path: "/api/user/loggedin" });
+
+    return res
+      .status(200)
+      .json({ message: "successfully Logged Out.", status: "LogOut" });
   });
 
   // Get User
@@ -184,12 +205,13 @@ class userController {
 
   // User loggedIn status
   static loggedinStatus = asyncHandler(async (req, res) => {
-    const token = req.cookies.token;
-    console.log("Arif Token:", token);
-    if (!token) {
+    // const token = req.cookies.token;
+    const Token = reactCookie.load("token");
+    // console.log("React Token", Token);
+    if (!Token) {
       return res.json(false);
     }
-    const verified = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const verified = jwt.verify(Token, process.env.JWT_SECRET_KEY);
     if (verified) {
       return res.json(true);
     }
@@ -202,16 +224,17 @@ class userController {
     const { _id } = req.user;
 
     const user = await userModel.findById(_id);
+
     if (user) {
-      const { name, phone, email, _id, photo, bio } = user;
+      const { name, phone, _id, photo, bio } = user;
 
       await userModel.findByIdAndUpdate(
         _id,
         {
-          name: req.body.name || name,
-          phone: req.body.phone || phone,
-          photo: req.body.photo || photo,
-          bio: req.body.bio || bio,
+          name: req.body.data.name || name,
+          phone: req.body.data.phone || phone,
+          photo: req.body.data.photo || photo,
+          bio: req.body.data.bio || bio,
         },
         { new: true }
       );
@@ -223,53 +246,53 @@ class userController {
 
   //forgate password.
 
-  static forgotePassword = asyncHandler(async (req, res) => {
-    const { email } = req.body;
-    const user = await userModel.findOne({ email });
-    if (!user) {
-      res.status(401);
-      throw new Error("User does not exists.");
-    } else {
-      // generate query token
+  // static forgotePassword = asyncHandler(async (req, res) => {
+  //   const { email } = req.body;
+  //   const user = await userModel.findOne({ email });
+  //   if (!user) {
+  //     res.status(401);
+  //     throw new Error("User does not exists.");
+  //   } else {
+  //     // generate query token
 
-      let resetToken = crypto.randomBytes(32).toString("hex") + user._id;
-      // Hash token before save
-      const hashedToken = crypto
-        .createHash("sha256")
-        .update(resetToken)
-        .digest("hex");
+  //     let resetToken = crypto.randomBytes(32).toString("hex") + user._id;
+  //     // Hash token before save
+  //     const hashedToken = crypto
+  //       .createHash("sha256")
+  //       .update(resetToken)
+  //       .digest("hex");
 
-      await new tokenModel({
-        userId: user._id,
-        token: hashedToken,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 30 * (60 * 1000), // 30 min
-      }).save();
+  //     await new tokenModel({
+  //       userId: user._id,
+  //       token: hashedToken,
+  //       createdAt: Date.now(),
+  //       expiresAt: Date.now() + 30 * (60 * 1000), // 30 min
+  //     }).save();
 
-      // construct reset email
-      const resetUrl = `${process.env.FRONTEND_URL}/resetpassword/${resetToken}`;
+  //     // construct reset email
+  //     const resetUrl = `${process.env.FRONTEND_URL}/resetpassword/${resetToken}`;
 
-      // Reset Email
-      const message = `
-      <h2>Hello ${user.name}</h2>
-      <p>Please use the url below to reset your password.</p>
-      <p>This Reset link is valid for only 30 minutes.</p>
+  //     // Reset Email
+  //     const message = `
+  //     <h2>Hello ${user.name}</h2>
+  //     <p>Please use the url below to reset your password.</p>
+  //     <p>This Reset link is valid for only 30 minutes.</p>
 
-      <a href=${resetUrl} clicktracking=off>${resetUrl}</a>
-      <p>Regards...</p>
-      `;
-      const subject = "Password Reset Request";
-      const send_to = user.email;
+  //     <a href=${resetUrl} clicktracking=off>${resetUrl}</a>
+  //     <p>Regards...</p>
+  //     `;
+  //     const subject = "Password Reset Request";
+  //     const send_to = user.email;
 
-      const send_form = process.env.EMAIL_USER;
-      try {
-        await sendEmail(subject, message, send_to, send_form);
-        res.status(200).json({ success: true, message: "Reset Email Sent." });
-      } catch (error) {
-        res.status(401);
-        throw new Error("Email not sent,please try again.");
-      }
-    }
-  });
+  //     const send_form = process.env.EMAIL_USER;
+  //     try {
+  //       await sendEmail(subject, message, send_to, send_form);
+  //       res.status(200).json({ success: true, message: "Reset Email Sent." });
+  //     } catch (error) {
+  //       res.status(401);
+  //       throw new Error("Email not sent,please try again.");
+  //     }
+  //   }
+  // });
 }
 module.exports = userController;

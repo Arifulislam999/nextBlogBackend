@@ -10,7 +10,7 @@ router.post("/login", userController.userLogin);
 router.get("/logout", userController.userLogout);
 router.patch("/update-password", userController.userUpdatePassword);
 router.get("/loggedin", userController.loggedinStatus);
-router.post("/forgote-password", userController.forgotePassword);
+// router.post("/forgote-password", userController.forgotePassword);
 
 // user route and protectedRoute
 router.get("/getuser", protectRoute, userController.getUser);
