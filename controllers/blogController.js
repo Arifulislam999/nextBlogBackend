@@ -29,12 +29,24 @@ class blogController {
 
   static getAllPost = asyncHandler(async (req, res) => {
     try {
+      const { page } = req.query;
+      const limit = 5;
+      const startIndex = (page - 1) * limit;
+      const endIndex = page * limit;
+
       const allPost = await postModel
         .find({})
         .sort({ updatedAt: -1 })
         .populate("creatorId");
 
-      res.status(200).json({ allPost: allPost, status: "success" });
+      //slice the all Post Result.
+      const result = allPost.slice(startIndex, endIndex);
+
+      res.status(200).json({
+        allPost: result,
+        status: "success",
+        totalPost: Number(allPost?.length),
+      });
     } catch (error) {
       res.status(400);
       throw new Error("Can'n find all data.");
