@@ -209,13 +209,14 @@ class userController {
     const Token = reactCookie.load("token");
     // console.log("React Token", Token);
     if (!Token) {
-      return res.json(false);
+      return res.json({ status: false, phone: null });
     }
     const verified = jwt.verify(Token, process.env.JWT_SECRET_KEY);
     if (verified) {
-      return res.json(true);
+      const photo = await userModel.findById({ _id: verified?.userId });
+      return res.json({ status: true, photo: photo.photo });
     }
-    return res.json(false);
+    return res.json({ status: false, photo: null });
   });
 
   // update user

@@ -29,7 +29,10 @@ class blogController {
 
   static getAllPost = asyncHandler(async (req, res) => {
     try {
-      const allPost = await postModel.find({}).populate("creatorId");
+      const allPost = await postModel
+        .find({})
+        .sort({ updatedAt: -1 })
+        .populate("creatorId");
 
       res.status(200).json({ allPost: allPost, status: "success" });
     } catch (error) {
